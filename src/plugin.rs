@@ -36,6 +36,34 @@ pub struct PluginManifest {
     /// Services this plugin requires
     #[serde(default)]
     pub requires: Vec<ServiceRequirement>,
+
+    /// CLI command configuration (optional)
+    /// When present, registers the plugin as a top-level CLI command
+    #[serde(default)]
+    pub cli: Option<CliConfig>,
+
+    /// Capabilities this plugin provides (for cocoon routing)
+    /// Auto-discovered capabilities for hybrid cloud routing
+    #[serde(default)]
+    pub capabilities: Vec<CapabilityDeclaration>,
+}
+
+/// CLI command configuration for plugins that provide top-level commands.
+///
+/// When a plugin has a `[cli]` section, it will be registered as a
+/// direct subcommand of the `adi` CLI (e.g., `adi tasks`, `adi lint`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CliConfig {
+    /// The command name (e.g., "tasks", "lint")
+    /// Must be lowercase alphanumeric with hyphens
+    pub command: String,
+
+    /// Human-readable description for --help output
+    pub description: String,
+
+    /// Optional short aliases (e.g., ["t"] for "tasks")
+    #[serde(default)]
+    pub aliases: Vec<String>,
 }
 
 impl PluginManifest {
@@ -221,6 +249,23 @@ pub struct ServiceRequirement {
     pub optional: bool,
 }
 
+/// Capability declaration for hybrid cloud routing.
+///
+/// Capabilities are advertised to the signaling server, allowing cocoons
+/// to discover and request services from each other (e.g., embeddings, LLM chat).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapabilityDeclaration {
+    /// Protocol/capability name (e.g., "tasks", "embeddings", "llm.chat")
+    pub protocol: String,
+
+    /// Semantic version (e.g., "1.0.0", "2.3.1")
+    pub version: String,
+
+    /// Human-readable description (optional)
+    #[serde(default)]
+    pub description: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -274,5 +319,80 @@ name = "my_plugin"
         let manifest = PluginManifest::from_toml(toml).unwrap();
         let filename = manifest.binary_filename();
         assert!(filename.contains("my_plugin"));
+    }
+
+    #[test]
+    fn test_cli_config() {
+        let toml = r#"
+[plugin]
+id = "adi.tasks"
+name = "ADI Tasks"
+version = "1.0.0"
+type = "core"
+
+[cli]
+command = "tasks"
+description = "Task management with dependency tracking"
+aliases = ["t"]
+
+[binary]
+name = "adi_tasks_plugin"
+"#;
+
+        let manifest = PluginManifest::from_toml(toml).unwrap();
+        assert!(manifest.cli.is_some());
+        let cli = manifest.cli.unwrap();
+        assert_eq!(cli.command, "tasks");
+        assert_eq!(cli.description, "Task management with dependency tracking");
+        assert_eq!(cli.aliases, vec!["t"]);
+    }
+
+    #[test]
+    fn test_no_cli_config() {
+        let toml = r#"
+[plugin]
+id = "adi.embed"
+name = "ADI Embed"
+version = "1.0.0"
+type = "core"
+
+[binary]
+name = "adi_embed_plugin"
+"#;
+
+        let manifest = PluginManifest::from_toml(toml).unwrap();
+        assert!(manifest.cli.is_none());
+    }
+
+    #[test]
+    fn test_capabilities() {
+        let toml = r#"
+[plugin]
+id = "adi.tasks"
+name = "ADI Tasks"
+version = "1.0.0"
+type = "core"
+
+[[capabilities]]
+protocol = "tasks"
+version = "1.0.0"
+description = "Task management API"
+
+[[capabilities]]
+protocol = "tasks.execute"
+version = "1.0.0"
+description = "Task execution capability"
+
+[binary]
+name = "adi_tasks_plugin"
+"#;
+
+        let manifest = PluginManifest::from_toml(toml).unwrap();
+        assert_eq!(manifest.capabilities.len(), 2);
+        assert_eq!(manifest.capabilities[0].protocol, "tasks");
+        assert_eq!(manifest.capabilities[0].version, "1.0.0");
+        assert_eq!(manifest.capabilities[0].description, "Task management API");
+        assert_eq!(manifest.capabilities[1].protocol, "tasks.execute");
+        assert_eq!(manifest.capabilities[1].version, "1.0.0");
     }
 }

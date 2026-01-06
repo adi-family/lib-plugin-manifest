@@ -106,4 +106,14 @@ impl Manifest {
     pub fn is_package(&self) -> bool {
         matches!(self, Manifest::Package(_))
     }
+
+    /// Get CLI configuration if this is a single plugin with CLI support.
+    /// Returns None for packages (they can't have CLI commands) or
+    /// single plugins without a [cli] section.
+    pub fn cli_config(&self) -> Option<&CliConfig> {
+        match self {
+            Manifest::Single(m) => m.cli.as_ref(),
+            Manifest::Package(_) => None,
+        }
+    }
 }

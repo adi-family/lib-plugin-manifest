@@ -88,6 +88,10 @@ impl PackageManifest {
                     config: plugin_def.config.clone().unwrap_or_default(),
                     provides: plugin_def.provides.clone(),
                     requires: plugin_def.requires.clone(),
+                    // Packages don't support CLI commands - only single plugins do
+                    cli: None,
+                    // Packages don't support capabilities - only single plugins do
+                    capabilities: Vec::new(),
                 }
             })
             .collect()
