@@ -271,6 +271,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_parse_cocoon_manifest() {
+        let toml = r#"[plugin]
+id = "adi.cocoon"
+name = "Cocoon"
+version = "0.1.2"
+type = "core"
+author = "ADI Team"
+description = "Remote containerized worker with PTY support and signaling server connectivity"
+min_host_version = "0.8.0"
+
+[cli]
+command = "cocoon"
+description = "Containerized worker for remote command execution"
+aliases = []
+
+[[provides]]
+id = "adi.cocoon.cli"
+version = "1.0.0"
+description = "CLI commands for cocoon management"
+
+[binary]
+name = "libcocoon"
+
+[tags]
+categories = ["remote", "execution", "terminal", "pty"]
+"#;
+        let manifest = PluginManifest::from_toml(toml).unwrap();
+        assert_eq!(manifest.plugin.id, "adi.cocoon");
+        assert_eq!(manifest.plugin.plugin_type, "core");
+    }
+
+    #[test]
     fn test_parse_plugin_manifest() {
         let toml = r#"
 [plugin]
