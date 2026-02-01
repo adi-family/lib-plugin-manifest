@@ -64,6 +64,13 @@ pub struct CliConfig {
     /// Optional short aliases (e.g., ["t"] for "tasks")
     #[serde(default)]
     pub aliases: Vec<String>,
+
+    /// Enable dynamic shell completions for this command.
+    /// When true, the shell will call `adi <command> --completions <position> [args...]`
+    /// to get completion suggestions. The plugin should output tab-separated
+    /// completion\tdescription pairs, one per line.
+    #[serde(default)]
+    pub dynamic_completions: bool,
 }
 
 impl PluginManifest {
