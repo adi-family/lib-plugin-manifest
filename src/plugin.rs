@@ -46,6 +46,26 @@ pub struct PluginManifest {
     /// Auto-discovered capabilities for hybrid cloud routing
     #[serde(default)]
     pub capabilities: Vec<CapabilityDeclaration>,
+
+    /// Tags for categorization
+    #[serde(default)]
+    pub tags: Option<TagsInfo>,
+
+    /// Hive plugin metadata (for hive-plugin type)
+    #[serde(default)]
+    pub hive: Option<HiveInfo>,
+
+    /// Translation plugin metadata (for translation type)
+    #[serde(default)]
+    pub translation: Option<TranslationInfo>,
+
+    /// Language analyzer metadata (for lang type)
+    #[serde(default)]
+    pub language: Option<LanguageInfo>,
+
+    /// Platform requirements
+    #[serde(default)]
+    pub requirements: Option<RequirementsInfo>,
 }
 
 /// CLI command configuration for plugins that provide top-level commands.
@@ -273,6 +293,79 @@ pub struct CapabilityDeclaration {
     pub description: String,
 }
 
+/// Tags for plugin categorization and discovery.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TagsInfo {
+    /// Category tags (e.g., ["tasks", "workflow"])
+    #[serde(default)]
+    pub categories: Vec<String>,
+
+    /// Platform tags (e.g., ["darwin-aarch64"])
+    #[serde(default)]
+    pub platforms: Vec<String>,
+}
+
+/// Hive plugin metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HiveInfo {
+    /// Plugin category within hive (e.g., "runner", "proxy", "health")
+    pub category: String,
+
+    /// Plugin name within category (e.g., "docker", "cors")
+    pub name: String,
+}
+
+/// Translation plugin metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranslationInfo {
+    /// Plugin ID this translates (e.g., "adi.workflow")
+    pub translates: String,
+
+    /// Language code (e.g., "en-US")
+    pub language: String,
+
+    /// Human-readable language name (e.g., "English (United States)")
+    pub language_name: String,
+
+    /// Translation namespace (e.g., "workflow")
+    pub namespace: String,
+}
+
+/// Language analyzer plugin metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LanguageInfo {
+    /// Language identifier (e.g., "rust", "python")
+    pub id: String,
+
+    /// File extensions (e.g., ["rs"], ["py", "pyi"])
+    pub extensions: Vec<String>,
+}
+
+/// Platform requirements for the plugin.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequirementsInfo {
+    /// Required OS (e.g., "darwin", "linux")
+    #[serde(default)]
+    pub os: Option<String>,
+
+    /// Required architecture (e.g., "aarch64")
+    #[serde(default)]
+    pub arch: Option<String>,
+
+    /// Human-readable notes about requirements
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+impl PluginManifest {
+    /// Serialize to TOML string.
+    pub fn to_toml(&self) -> Result<String, ManifestError> {
+        toml::to_string_pretty(self).map_err(|e| {
+            ManifestError::InvalidFormat(format!("Failed to serialize manifest: {e}"))
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -401,6 +494,119 @@ name = "adi_embed_plugin"
 
         let manifest = PluginManifest::from_toml(toml).unwrap();
         assert!(manifest.cli.is_none());
+    }
+
+    #[test]
+    fn test_parse_hive_plugin() {
+        let toml = r#"
+[plugin]
+id = "hive.runner.docker"
+name = "Docker Runner"
+version = "0.1.0"
+type = "hive-plugin"
+author = "ADI Team"
+description = "Docker container runner"
+
+[hive]
+category = "runner"
+name = "docker"
+
+[tags]
+categories = ["hive", "runner", "docker"]
+
+[binary]
+name = "plugin"
+"#;
+        let manifest = PluginManifest::from_toml(toml).unwrap();
+        assert_eq!(manifest.plugin.id, "hive.runner.docker");
+        let hive = manifest.hive.unwrap();
+        assert_eq!(hive.category, "runner");
+        assert_eq!(hive.name, "docker");
+        let tags = manifest.tags.unwrap();
+        assert_eq!(tags.categories, vec!["hive", "runner", "docker"]);
+    }
+
+    #[test]
+    fn test_parse_translation_plugin() {
+        let toml = r#"
+[plugin]
+id = "adi.workflow.en-US"
+name = "ADI Workflow - English"
+version = "1.0.0"
+type = "translation"
+
+[translation]
+translates = "adi.workflow"
+language = "en-US"
+language_name = "English (United States)"
+namespace = "workflow"
+
+[binary]
+name = "plugin"
+"#;
+        let manifest = PluginManifest::from_toml(toml).unwrap();
+        let tr = manifest.translation.unwrap();
+        assert_eq!(tr.translates, "adi.workflow");
+        assert_eq!(tr.language, "en-US");
+        assert_eq!(tr.namespace, "workflow");
+    }
+
+    #[test]
+    fn test_parse_language_plugin() {
+        let toml = r#"
+[plugin]
+id = "adi.lang.rust"
+name = "Rust Language Support"
+version = "3.0.0"
+type = "lang"
+
+[language]
+id = "rust"
+extensions = ["rs"]
+
+[binary]
+name = "plugin"
+"#;
+        let manifest = PluginManifest::from_toml(toml).unwrap();
+        let lang = manifest.language.unwrap();
+        assert_eq!(lang.id, "rust");
+        assert_eq!(lang.extensions, vec!["rs"]);
+    }
+
+    #[test]
+    fn test_to_toml_roundtrip() {
+        let toml_input = r#"
+[plugin]
+id = "adi.tasks"
+name = "ADI Tasks"
+version = "0.8.8"
+type = "core"
+author = "ADI Team"
+description = "Task management"
+
+[cli]
+command = "tasks"
+description = "Task management"
+aliases = ["t"]
+
+[[provides]]
+id = "adi.tasks.cli"
+version = "1.0.0"
+description = "CLI commands"
+
+[binary]
+name = "plugin"
+
+[tags]
+categories = ["tasks", "workflow"]
+"#;
+        let manifest = PluginManifest::from_toml(toml_input).unwrap();
+        let serialized = manifest.to_toml().unwrap();
+        let reparsed = PluginManifest::from_toml(&serialized).unwrap();
+        assert_eq!(reparsed.plugin.id, "adi.tasks");
+        assert_eq!(reparsed.plugin.version, "0.8.8");
+        assert!(reparsed.cli.is_some());
+        assert_eq!(reparsed.provides.len(), 1);
     }
 
     #[test]

@@ -92,6 +92,11 @@ impl PackageManifest {
                     cli: None,
                     // Packages don't support capabilities - only single plugins do
                     capabilities: Vec::new(),
+                    tags: None,
+                    hive: None,
+                    translation: None,
+                    language: None,
+                    requirements: None,
                 }
             })
             .collect()

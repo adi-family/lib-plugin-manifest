@@ -35,6 +35,7 @@
 //! binary = "dark_theme"
 //! ```
 
+pub mod cargo_extract;
 mod error;
 mod package;
 mod platform;
