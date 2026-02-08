@@ -468,7 +468,7 @@ description = "Task management with dependency tracking"
 aliases = ["t"]
 
 [binary]
-name = "adi_tasks_plugin"
+name = "tasks_plugin"
 "#;
 
         let manifest = PluginManifest::from_toml(toml).unwrap();
@@ -489,7 +489,7 @@ version = "1.0.0"
 type = "core"
 
 [binary]
-name = "adi_embed_plugin"
+name = "embed_plugin"
 "#;
 
         let manifest = PluginManifest::from_toml(toml).unwrap();
@@ -629,7 +629,7 @@ version = "1.0.0"
 description = "Task execution capability"
 
 [binary]
-name = "adi_tasks_plugin"
+name = "tasks_plugin"
 "#;
 
         let manifest = PluginManifest::from_toml(toml).unwrap();
